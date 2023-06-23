@@ -1,0 +1,98 @@
+version: ">= 0.16"
+
+formatter: markdown table
+
+recursive:
+  enabled: false
+  path: modules
+
+sections:
+  show:
+    - header
+    - inputs
+    - outputs
+    - providers
+    - requirements
+    # - modules
+    - footer
+
+content: |-
+  ![Terraform](https://img.shields.io/badge/terraform-%235835CC.svg?style=for-the-badge&logo=terraform&logoColor=white)
+  
+  {{ .Header }}
+  
+  ---
+
+  ## Example usage
+  ```hcl
+  # Get Azure resource pool information
+  data "azurerm_resource_group" "rg_avd" {
+  name = var.resource_group_name
+  }
+
+  # Get AVD host pool information
+  data "azurerm_virtual_desktop_host_pool" "hostpool_avd" {
+  name                = var.hostpool_name
+  resource_group_name = data.azurerm_resource_group.rg_avd.name
+  }
+
+  # Create AVD host pool registration token for registering agent
+  resource "azurerm_virtual_desktop_host_pool_registration_info" "hostpoolreg_avd" {
+  hostpool_id     = data.azurerm_virtual_desktop_host_pool.hostpool_avd.id
+  expiration_date = timeadd(timestamp(), "1.1h")
+  }
+
+  # Provision and register the AVD VM(s) using the terraform-azapi-avd-vm module
+  module "avd_vm" {
+  count                        = var.number_of_vms
+  source                       = "git::https://github.com/RonTom42/terraform-azapi-avd-vm.git?ref=v1.0.0"
+  name                         = format("%s%02d", var.name, (count.index + 1))
+  resource_group_name          = var.resource_group_name
+  extendedLocation             = var.extendedLocation
+  subnet_id                    = var.subnet_id
+  domain_name                  = var.domain_name
+  ou_path                      = var.ou_path
+  domain_join_user             = var.domain_join_user
+  domain_join_password         = var.domain_join_password
+  admin_password               = var.admin_password
+  admin_username               = var.admin_username
+  vm_image                     = var.vm_image
+  host_pool_registration_token = azurerm_virtual_desktop_host_pool_registration_info.hostpoolreg_avd.token
+  hostpool_name                = var.hostpool_name
+  }
+  ```
+
+---
+
+  ## Technical information
+  
+  {{ .Providers }}
+
+  {{ .Requirements }}
+
+  {{ .Inputs }}
+
+  {{ .Outputs }}
+
+  ---
+  
+  {{ .Footer }}
+
+output:
+  file: README.md
+  mode: replace
+  template: |-
+    <!-- BEGIN_TF_DOCS -->
+    {{ .Content }}
+    <!-- END_TF_DOCS -->
+
+sort:
+  enabled: true
+  by: required
+
+settings:
+  indent: 4
+  escape: false
+  default: true
+  required: true
+  type: true
